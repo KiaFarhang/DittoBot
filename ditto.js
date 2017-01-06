@@ -16,10 +16,17 @@ let bot = new Bot({
 bot.updateBotConfiguration();
 
 bot.onTextMessage((message, next) => {
+    //Get the sender's username
     let username = message._state.from;
-    console.log(username);
+    //Check if the database has anyone by that username
+    //If not, greet the user
+    message.reply(`Nice to meet you! Let's build your pokemon. First, I'll need some information. What's your trainer ID? That's the six-digit code etc. etc.`);
+    next();
 });
 
+bot.onTextMessage((message, next) => {
+    message.reply('This is another message!');
+});
 
 
 function User(name) {

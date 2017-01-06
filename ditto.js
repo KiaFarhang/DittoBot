@@ -21,11 +21,10 @@ bot.onTextMessage((message, next) => {
     //Check if the database has anyone by that username
     //If not, greet the user
     message.reply(`Nice to meet you! Let's build your Pokémon.`);
-    test();
-});
+    next();
 
-function test() {
     bot.onTextMessage((message, next) => {
+        //
         message.reply(`First, I'll need to gather some information from you. I'll save it to speed up the process in the future.`);
         next();
     });
@@ -33,7 +32,18 @@ function test() {
     bot.onTextMessage((message, next) => {
         message.reply(`What's your trainer ID?`);
     });
-}
+});
+
+// bot.onTextMessage((message, next) => {
+// 	//
+//     message.reply(`First, I'll need to gather some information from you. I'll save it to speed up the process in the future.`);
+//     next();
+// });
+
+// bot.onTextMessage((message, next) => {
+//     message.reply(`What's your trainer ID?`);
+// });
+
 
 
 

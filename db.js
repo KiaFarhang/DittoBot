@@ -15,85 +15,29 @@ let pgConfig = {
 let pool = new pg.Pool(pgConfig);
 
 exports.handleUser = function handleUser(username) {
-    // let message = `Nice to meet you, ${username}! Let's get started building your Pokemon.`;
-
-    // let message = promiseA(username).then(function(username) {
-    //     if (username == 'gamezdong') {
-    //         return promiseB(username);
-    //     }
-    //     return results;
-    // }).catch(function(reason) {
-    //     console.log(reason);
-    // });
-    // console.log(username);
-    // console.log(typeof username);
-    // return username;
-    let message = promiseA(username).catch((error) =>{
-        console.log(error.stack);
+    let message = isUserInDb(username).then(function(result) {
+        if (result === true) {
+            return `Hello, ${username}!`;
+        }
+        return `Who are you?`;
     });
+
     return message;
-    // let message = promiseA(username)
-    // .then(promiseB);
-    // return message;
 }
 
-function promiseA(username) {
+function isUserInDb(username) {
     return new Promise((resolve, reject) => {
-        resolve(username);
+        pool.connect(function(error, client, done) {
+            if (error) {
+                return reject(error);
+            }
+            client.query(`SELECT 1 FROM users WHERE username = '${username}'`, function(error, result) {
+                done();
+                if (error) {
+                    return reject(false);
+                }
+                return resolve(true);
+            });
+        });
     });
 }
-
-// function promiseB(username) {
-//     return new Promise((resolve, reject) => {
-//         if (username == 'gamezdong') {
-//             return resolve(`${username} modified`);
-//         }
-//         else{
-//             return reject('rejected');
-//         }
-//     });
-// }
-
-// function isUserInDb(username) {
-//     return new Promise((resolve, reject) => {
-//         pool.connect(function(error, client, done) {
-//             if (error) {
-//                 return reject(error);
-//             }
-//             client.query(`SELECT 1 FROM users WHERE username = '${username}'`, function(error, result) {
-//                 done();
-//                 if (error) {
-//                     return reject(error);
-//                 }
-//                 return resolve(result.rows.length == 1);
-//             });
-//         });
-//     });
-// }
-
-
-// exports.handleUser = function handleUser(boolean) {
-//     return new Promise((resolve, reject) => {
-//         if (boolean = true) {
-//             //User is in the database
-//         } 
-//         else {
-
-//         }
-//     })
-// }
-
-// exports.isUserInDb = function isUserInDb(username) {
-//     pool.connect(function(error, client, done) {
-//         if (error) {
-//             return;
-//         }
-//         client.query(`SELECT 1 FROM users WHERE username = '${username}'`, function(error, result) {
-//             done();
-//             if (error) {
-//                 return;
-//             }
-//             console.log(result.rows);
-//         });
-//     });
-// }

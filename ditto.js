@@ -8,7 +8,6 @@ const db = require('./db.js');
 
 require('dotenv').config();
 
-
 let bot = new Bot({
     username: process.env.KIK_USER,
     apiKey: process.env.KIK_API,
@@ -22,9 +21,8 @@ process.on('unhandledRejection', (reason, p) => {
 bot.updateBotConfiguration();
 
 bot.onTextMessage((message, next) => {
-    let username = message._state.from;
-    // let reply = db.handleUser(username).then(logVarAndType, logVarAndType);
-    db.handleUser(username).then(function(result) {
+    let user = new db.User(message._state.from, message.body);
+    db.handleUser(user).then(function(result) {
         message.reply(result);
     });
     // console.log(answer);

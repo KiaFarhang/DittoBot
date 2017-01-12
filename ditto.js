@@ -23,12 +23,18 @@ bot.updateBotConfiguration();
 
 bot.onTextMessage((message, next) => {
     let username = message._state.from;
-    let reply = db.handleUser(username).then(logVarAndType, logVarAndType);
+    // let reply = db.handleUser(username).then(logVarAndType, logVarAndType);
+    db.handleUser(username).then(function(result) {
+        message.reply(result);
+    });
+    // console.log(answer);
+    // console.log(typeof answer);
+    // message.reply(answer);
 
-    function logVarAndType(v) {
-        console.log(v);
-        console.log(typeof v);
-    }
+    // function logVarAndType(v) {
+    //     console.log(v);
+    //     console.log(typeof v);
+    // }
 
 
     // function sendStringAsMessage(array) {

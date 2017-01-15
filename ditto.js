@@ -23,23 +23,9 @@ bot.updateBotConfiguration();
 bot.onTextMessage((message, next) => {
     let user = new db.User(message._state.from, message.body);
     db.handleUser(user).then(function(result) {
+        message.addResponseKeyboard(['Hello', 'Goodbye']);
         message.reply(result);
     });
-    // console.log(answer);
-    // console.log(typeof answer);
-    // message.reply(answer);
-
-    // function logVarAndType(v) {
-    //     console.log(v);
-    //     console.log(typeof v);
-    // }
-
-
-    // function sendStringAsMessage(array) {
-    //     message.reply(array);
-    // }
-
-
 });
 
 

@@ -1,7 +1,12 @@
 'use strict';
 
 let pg = require('pg');
+let fs = require('fs');
+
+const natural = require('./natural.js');
+
 require('dotenv').config();
+
 let pgConfig = {
     user: process.env.DB_USER,
     database: process.env.DB_NAME,
@@ -18,7 +23,12 @@ exports.User = function User(username, message) {
     this.username = username;
     this.message = message;
     this.state = null;
+    this.keyboard = null;
+    this.response = null;
     this['trainer_name'] = null;
+    this['game'] = null;
+    this['pokemon'] = null;
+    this['shiny'] = null;
 }
 
 exports.handleUser = function handleUser(user) {
@@ -55,7 +65,7 @@ function getUserState(user) {
                     console.log(`Error getting user state in DB: ${error}`);
                     return reject(error);
                 }
-                let state = 1;
+                let state = result.rows[0].state;
                 user.state = state;
                 return resolve(user);
             });
@@ -113,6 +123,22 @@ function handleState(user) {
                 return resolve(handleStateOne(user));
             case 2:
                 return resolve(handleStateTwo(user));
+            case 3:
+                return resolve(handleStateThree(user));
+            case 4:
+                return resolve(handleStateFour(user));
+            case 5:
+                return resolve(handleStateFive(user));
+            case 6:
+                return resolve(handleStateSix(user));
+            case 7:
+                return resolve(handleStateSeven(user));
+            case 8:
+                return resolve(handleStateEight(user));
+            case 9:
+                return resolve(handleStateNine(user));
+            case 10:
+                return resolve(handleStateTen(user));
         }
     });
 
@@ -120,25 +146,57 @@ function handleState(user) {
 
 function returnWelcomeMessage(user) {
     return new Promise((resolve, reject) => {
-        return resolve([`Nice to meet you, ${user.username}! Let's start building your Pokemon.`, `I'll need some information from you first. What's the name of your Pokemon trainer?`]);
+        user.response = [`Nice to meet you, ${user.username}! Let's start building your Pokemon. Which game are you playing?`];
+        user.keyboard = ['X', 'Y', 'Ruby', 'Sapphire', 'Sun', 'Moon'];
+        return resolve(user);
     });
 }
 
 function handleStateOne(user) {
     return new Promise((resolve, reject) => {
+        let trainerGame = user.message;
+        if (isGameValid(trainerGame)) {
+            user['game'] = trainerGame;
+            addAttributeAndUpdateState(user, 'game', 2).then(function(result) {
+                let messageArray = [];
+                messageArray.push(`Okay, I'll store the game ${trainerGame} for you.`);
+                messageArray.push(`What's your trainer's in-game name?`);
+                user.response = messageArray;
+                return resolve(user);
+            });
+        } else {
+            user.response = [`Sorry, that's not a valid game. What game are you playing?`];
+            user.keyboard = ['X', 'Y', 'Ruby', 'Sapphire', 'Sun', 'Moon'];
+            return resolve(user);
+        }
+    });
+
+
+    function isGameValid(game) {
+        if (game != 'X' && game != 'Y' && game != 'Ruby' && game != 'Sapphire' && game != 'Sun' && game != 'Moon') {
+            return false;
+        }
+        return true;
+    }
+}
+
+function handleStateTwo(user) {
+    return new Promise((resolve, reject) => {
         let trainerName = user.message;
         if (isTrainerNameValid(trainerName)) {
             user['trainer_name'] = trainerName;
-            addAttributeAndUpdateState(user, 'trainer_name', 2).then(function(result) {
+            addAttributeAndUpdateState(user, 'trainer_name', 3).then(function(result) {
                 let messageArray = [];
                 messageArray.push(`Thanks. I'll store the trainer name ${trainerName} for you.`);
-                messageArray.push(`Now, what game are you playing?`);
-                return resolve(messageArray);
+                messageArray.push(`So, which Pokemon would you like?`);
+                user.response = messageArray;
+                return resolve(user);
             });
         } else {
-            return resolve(`Sorry, that's not a valid trainer name. Can you give me your trainer name?`);
+            user.response = `Sorry, that's not a valid trainer name. Can you give me your trainer name?`;
+            return resolve(user);
         }
-    })
+    });
 
     function isTrainerNameValid(name) {
         if (name.length > 12) {
@@ -146,6 +204,214 @@ function handleStateOne(user) {
         }
         return true;
     }
+}
+
+function handleStateThree(user) {
+    return new Promise((resolve, reject) => {
+        let userPokemon = user.message;
+        checkPokemonMatch(userPokemon).then(function(result) {
+            if (result.bool === true) {
+                if (result.match) {
+                    updateRequest(user, 'pokemon', userPokemon, 5)
+                        .then(updateUserState).then(function(result) {
+                            user.response = [`Got it, you want a ${userPokemon}. Would you like it to be shiny?`];
+                            user.keyboard = ['Yes', 'No'];
+                            return resolve(user);
+                        });
+                } else if (result.sugg) {
+                    user.sugg = result.sugg;
+                    updateRequest(user, 'pokemon', user.sugg, 4)
+                        .then(updateUserState).then(function(result) {
+                            user.response = [`Did you mean you want a ${user.sugg}?`];
+                            user.keyboard = ['Yes', 'No'];
+                            return resolve(user);
+                        });
+                }
+            } else {
+                user.response = `Sorry, I don't recognize that Pokemon. Which Pokemon would you like?`;
+                return resolve(user);
+            }
+        });
+    });
+
+
+
+}
+
+function handleStateFour(user) {
+    return new Promise((resolve, reject) => {
+        if (user.message === 'Yes') {
+            user.state = 5;
+            updateUserState(user)
+                .then(function(result) {
+                    let user = result;
+                    user.response = [`Excellent. Would you like it to be shiny?`];
+                    user.keyboard = ['Yes', 'No'];
+                    return resolve(user);
+                });
+        } else if (user.message === 'No') {
+            user.state = 3;
+            updateUserState(user)
+                .then(function(result) {
+                    let user = result;
+                    user.response = `Then let's try again. Which Pokemon would you like?`;
+                    return resolve(user);
+                });
+        } else {
+            user.response = [`Sorry, I need a yes or a no.`];
+            user.keyboard = ['Yes', 'No'];
+            return resolve(user);
+        }
+    });
+}
+
+function handleStateFive(user) {
+    return new Promise((resolve, reject) => {
+        if (user.message === 'Yes') {
+            user['shiny'] = true;
+            updateRequest(user, 'shiny', user['shiny'], 6)
+                .then(updateUserState).then(function(result) {
+                    user.response = ['Shiny it will be! Male or female?'];
+                    user.keyboard = ['Male', 'Female'];
+                    return resolve(user);
+                });
+        } else if (user.message === 'No') {
+            user['shiny'] = false;
+            updateRequest(user, 'shiny', user['shiny'], 6)
+                .then(updateUserState).then(function(result) {
+                    user.response = ['Alright, no shiny. Male or female?'];
+                    user.keyboard = ['Male', 'Female'];
+                    return resolve(user);
+                });
+        } else {
+            user.response = ['Sorry, I need a yes or no. Shiny?'];
+            user.keyboard = ['Yes', 'No'];
+            return resolve(user);
+        }
+    });
+}
+
+function handleStateSix(user) {
+    return new Promise((resolve, reject) => {
+        if (user.message === 'Male') {
+            user['gender'] = 'M';
+            updateRequest(user, 'gender', user['gender'], 7)
+                .then(updateUserState).then(function(result) {
+                    user.response = [`Okay, I'll make it male. What level should it be?`, `Note: if you enter an impossibly low level, the Pokemon will come at its lowest possible level.`];
+                    return resolve(user);
+                });
+        } else if (user.message === 'Female') {
+            user['gender'] = 'F';
+            updateRequest(user, 'gender', user['gender'], 7)
+                .then(updateUserState).then(function(result) {
+                    user.response = [`Okay, I'll make it female. What level should it be?`, `Note: if you enter an impossibly low level, the Pokemon will come at its lowest possible level.`];
+                    return resolve(user);
+                });
+        } else {
+            user.response = [`Sorry, I need a gender. Male or female?`];
+            user.keyboard = ['Male', 'Female'];
+            return resolve(user);
+        }
+    });
+}
+
+function handleStateSeven(user) {
+    return new Promise((resolve, reject) => {
+        let level = parseInt(user.message);
+        if (level > 0 && level < 101) {
+            user['level'] = level;
+            updateRequest(user, 'level', user['level'], 8)
+                .then(updateUserState).then(function(result) {
+                    user.response = [`Level ${level} it is. One last thing: want to nickname your Pokemon?`];
+                    user.keyboard = ['Yes', 'No'];
+                    return resolve(user);
+                });
+        } else {
+            user.response = [`Sorry, I need a level between 1 and 100.`];
+            return resolve(user);
+        }
+    });
+}
+
+function handleStateEight(user) {
+    return new Promise((resolve, reject) => {
+        if (user.message === 'Yes') {
+            user.state = 9;
+            updateUserState(user).then(function(result) {
+                user.response = [`Cool. What should I nickname your Pokemon?`, `Remember, the max is 12 characters.`];
+                return resolve(user);
+            });
+        } else if (user.message === 'No') {
+            user.state = 10;
+            updateUserState(user).then(function(result) {
+                user.response = [`Fair enough. Alright, I'll use the GTS to send you your Pokemon.`, `You'll need to deposit a Pokemon and ask for this one. What Pokemon should I look for on the GTS?`];
+                return resolve(user);
+            });
+        } else {
+            user.response = [`Sorry, I need a yes or a no. Want to nickname your Pokemon?`];
+            user.keyboard = ['Yes', 'No'];
+            return resolve(user);
+        }
+    });
+}
+
+function handleStateNine(user) {
+    return new Promise((resolve, reject) => {
+        if (user.message.length > 12 || user.message.length < 1) {
+            user.response = [`Sorry, you need a nickname between 1 and 12 characters. What should I nickname your Pokemon?`];
+            return resolve(user);
+        } else {
+            user['nickname'] = user.message;
+            updateRequest(user, 'nickname', user['nickname'], 10)
+                .then(updateUserState).then(function(result) {
+                    user.response = [`Got it, your Pokemon will be nicknamed ${user['nickname']}.`, `Alright, I'll use the GTS to send you your Pokemon.`, `You'll need to deposit a Pokemon and ask for this one. What Pokemon should I look for on the GTS?`];
+                    return resolve(user);
+                });
+        }
+    });
+}
+
+function handleStateTen(user) {
+    
+}
+
+function checkPokemonMatch(mon) {
+    return new Promise((resolve, reject) => {
+        checkPokemonAgainstList(mon).then(function(result) {
+            if (result.bool === true) {
+                return resolve(result);
+            }
+            return resolve(false);
+        });
+    });
+}
+
+function checkPokemonAgainstList(mon) {
+    return new Promise((resolve, reject) => {
+        fs.readFile('./pokemon.json', 'utf8', function(error, data) {
+            if (error) {
+                return reject(`Error reading from pokemon.json: ${error}`);
+            }
+            let pokemonList = JSON.parse(data);
+            for (let i = 0; i < pokemonList.length; i++) {
+                if (mon === pokemonList[i]) {
+                    let object = {
+                        bool: true,
+                        match: pokemonList[i]
+                    }
+                    return resolve(object);
+                } else if (natural.JaroWinklerCheck(mon, pokemonList[i]) >= .9) {
+                    let object = {
+                        bool: true,
+                        sugg: pokemonList[i]
+
+                    }
+                    return resolve(object);
+                }
+            }
+            return resolve(false);
+        });
+    });
 }
 
 function addAttributeAndUpdateState(user, attribute, state) {
@@ -158,6 +424,41 @@ function addAttributeAndUpdateState(user, attribute, state) {
                 done();
                 if (error) {
                     return reject(`Error inserting attribute ${attribute} into DB: ${error}`);
+                }
+                return resolve(user);
+            });
+        });
+    });
+}
+
+function updateRequest(user, column, value, state) {
+    return new Promise((resolve, reject) => {
+        pool.connect(function(error, client, done) {
+            if (error) {
+                return reject(`Error connecting to database: $error`);
+            }
+            client.query(`INSERT INTO requests (username, ${column}) VALUES ('${user.username}', '${value}') ON CONFLICT (username) DO UPDATE SET ${column} = '${value}'`, function(error, result) {
+                done();
+                if (error) {
+                    return reject(`Error updating request in DB: ${error}`);
+                }
+                user.state = state;
+                return resolve(user);
+            });
+        });
+    });
+}
+
+function updateUserState(user) {
+    return new Promise((resolve, reject) => {
+        pool.connect(function(error, client, done) {
+            if (error) {
+                return reject(`Error connecting to database: $error`);
+            }
+            client.query(`UPDATE users SET (state) = (${user.state}) WHERE username = '${user.username}'`, function(error, result) {
+                done();
+                if (error) {
+                    return reject(`Error updating state in DB: ${error}`);
                 }
                 return resolve(user);
             });

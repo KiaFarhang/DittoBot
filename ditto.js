@@ -23,14 +23,20 @@ bot.updateBotConfiguration();
 bot.onTextMessage((message, next) => {
     let user = new db.User(message._state.from, message.body);
     db.handleUser(user).then(function(result) {
-        message.addResponseKeyboard(['Hello', 'Goodbye']);
-        message.reply(result);
+        let messages = result.response;
+
+        if (doesUserNeedKeyboard(result)) {
+            let msg = Bot.Message.text(messages[0]);
+            message.reply(msg.addResponseKeyboard(result.keyboard));
+        } else {
+            message.reply(messages);
+        }
     });
 });
 
-
-
-
+function doesUserNeedKeyboard(user) {
+    return user.keyboard != null;
+}
 
 
 let server = http.createServer(bot.incoming()).listen(8080);

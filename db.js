@@ -139,6 +139,10 @@ function handleState(user) {
                 return resolve(handleStateNine(user));
             case 10:
                 return resolve(handleStateTen(user));
+            case 11:
+                return resolve(handleStateEleven(user));
+            case 12:
+                return resolve(handleStateTwelve(user));
         }
     });
 
@@ -233,9 +237,6 @@ function handleStateThree(user) {
             }
         });
     });
-
-
-
 }
 
 function handleStateFour(user) {
@@ -372,7 +373,77 @@ function handleStateNine(user) {
 }
 
 function handleStateTen(user) {
-    
+    return new Promise((resolve, reject) => {
+        let tradePokemon = user.message;
+        checkPokemonMatch(tradePokemon).then(function(result) {
+            if (result.bool === true) {
+                if (result.match) {
+                    updateRequest(user, 'trade', tradePokemon, 12)
+                        .then(updateUserState).then(function(result) {
+                            user.response = [`Great, I'll look for a ${tradePokemon}.`, `This is it. The final step. What level ${tradePokemon} will it be?`];
+                            return resolve(user);
+                        });
+                } else if (result.sugg) {
+                    user.sugg = result.sugg;
+                    updateRequest(user, 'trade', user.sugg, 11)
+                        .then(updateUserState).then(function(result) {
+                            user.response = [`Did you mean you'll trade a ${user.sugg}?`];
+                            user.keyboard - ['Yes', 'No'];
+                            return resolve(user);
+                        });
+                }
+            } else {
+                user.response = `Sorry, I don't recognize that Pokemon. Which Pokemon will you deposit in the GTS?`;
+                return resolve(user);
+            }
+        });
+    });
+}
+
+function handleStateEleven(user) {
+    return new Promise((resolve, reject) => {
+        if (user.message === 'Yes') {
+            user.state = 12;
+            updateUserState(user)
+                .then(function(result) {
+                    let user = result;
+                    user.response - [`Perfect. Alright, last step. What level Pokemon are you depositing in the GTS?`];
+                    return resolve(user);
+                });
+        } else if (user.message === 'No') {
+            user.state = 10;
+            updateUserState(user)
+                .then(function(result) {
+                    let user = result;
+                    user.response = `Alright, let's try again. Which Pokemon will you deposit in the GTS?`;
+                    return resolve(user);
+                });
+        } else {
+            user.response = [`I need a yes or a no.`];
+            user.keyboard = ['Yes', 'No'];
+            return resolve(user);
+        }
+    });
+}
+
+function handleStateTwelve(user) {
+    return new Promise((resolve, reject) => {
+        let level = parseInt(user.message);
+        if (level > 0 && level < 101) {
+            user['trade_level'] = level;
+            updateRequest(user, 'trade_level', user['trade_level'], 13)
+                .then(updateUserState)
+                .then(timestampUser)
+                .then(function(result) {
+                    user.response = [`Thank you so much for using DittoBot! You'll get your Pokemon within 48 hours. Want a reminder when you can request another Pokemon?`];
+                    user.keyboard = ['Yes', 'No'];
+                    return resolve(user);
+                });
+        } else {
+            user.response = ['Sorry, I need a level between 1 and 100.'];
+            return resolve(user);
+        }
+    });
 }
 
 function checkPokemonMatch(mon) {
@@ -459,6 +530,24 @@ function updateUserState(user) {
                 done();
                 if (error) {
                     return reject(`Error updating state in DB: ${error}`);
+                }
+                return resolve(user);
+            });
+        });
+    });
+}
+
+function timestampUser(user) {
+    return new Promise((resolve, reject) => {
+        pool.connect(function(error, client, done) {
+            if (error) {
+                return reject(`Error connecting to database: ${error}`);
+            }
+            let date = new Date();
+            client.query(`UPDATE users SET last_request = 'now' WHERE username = ('${user.username}')`, function(error, result) {
+                done();
+                if (error) {
+                    return reject(`Error adding timestamp in DB: ${error}`);
                 }
                 return resolve(user);
             });

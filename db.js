@@ -2,10 +2,10 @@
 
 let pg = require('pg');
 let fs = require('fs');
-
 const natural = require('./natural.js');
-
 require('dotenv').config();
+
+let ditto = require('./ditto.js');
 
 let pgConfig = {
     user: process.env.DB_USER,
@@ -143,6 +143,8 @@ function handleState(user) {
                 return resolve(handleStateEleven(user));
             case 12:
                 return resolve(handleStateTwelve(user));
+            case 13:
+                return resolve(handleStateThirteen(user));
         }
     });
 
@@ -380,7 +382,7 @@ function handleStateTen(user) {
                 if (result.match) {
                     updateRequest(user, 'trade', tradePokemon, 12)
                         .then(updateUserState).then(function(result) {
-                            user.response = [`Great, I'll look for a ${tradePokemon}.`, `This is it. The final step. What level ${tradePokemon} will it be?`];
+                            user.response = [`Great, I'll look for ${tradePokemon}.`, `This is it. The final step. What level ${tradePokemon} will it be?`];
                             return resolve(user);
                         });
                 } else if (result.sugg) {
@@ -388,12 +390,12 @@ function handleStateTen(user) {
                     updateRequest(user, 'trade', user.sugg, 11)
                         .then(updateUserState).then(function(result) {
                             user.response = [`Did you mean you'll trade a ${user.sugg}?`];
-                            user.keyboard - ['Yes', 'No'];
+                            user.keyboard = ['Yes', 'No'];
                             return resolve(user);
                         });
                 }
             } else {
-                user.response = `Sorry, I don't recognize that Pokemon. Which Pokemon will you deposit in the GTS?`;
+                user.response = [`Sorry, I don't recognize that Pokemon. Which Pokemon will you deposit in the GTS?`];
                 return resolve(user);
             }
         });
@@ -407,7 +409,7 @@ function handleStateEleven(user) {
             updateUserState(user)
                 .then(function(result) {
                     let user = result;
-                    user.response - [`Perfect. Alright, last step. What level Pokemon are you depositing in the GTS?`];
+                    user.response = [`Perfect. Alright, last step. What level Pokemon are you depositing in the GTS?`];
                     return resolve(user);
                 });
         } else if (user.message === 'No') {
@@ -415,7 +417,7 @@ function handleStateEleven(user) {
             updateUserState(user)
                 .then(function(result) {
                     let user = result;
-                    user.response = `Alright, let's try again. Which Pokemon will you deposit in the GTS?`;
+                    user.response = [`Alright, let's try again. Which Pokemon will you deposit in the GTS?`];
                     return resolve(user);
                 });
         } else {
@@ -435,12 +437,39 @@ function handleStateTwelve(user) {
                 .then(updateUserState)
                 .then(timestampUser)
                 .then(function(result) {
-                    user.response = [`Thank you so much for using DittoBot! You'll get your Pokemon within 48 hours. Want a reminder when you can request another Pokemon?`];
+                    user.response = [`I hope you enjoyed using DittoBot! You'll get your Pokemon within 48 hours. Want a reminder when you can request another Pokemon?`];
                     user.keyboard = ['Yes', 'No'];
                     return resolve(user);
                 });
         } else {
             user.response = ['Sorry, I need a level between 1 and 100.'];
+            return resolve(user);
+        }
+    });
+}
+
+function handleStateThirteen(user) {
+    return new Promise((resolve, reject) => {
+        if (user.message === "Yes") {
+            ditto.queueReminder(user.username);
+            user.state = 14;
+            updateUserState(user)
+                .then(function(result) {
+                    let user = result;
+                    user.response = [`Okay - I'll remind you 24 hours from now so you can get another Pokemon :) Have a great day!`];
+                    return resolve(user);
+                });
+        } else if (user.message === 'No') {
+            user.state = 14;
+            updateUserState(user)
+                .then(function(result) {
+                    let user = result;
+                    user.response = [`Okay - just remember you have to wait 24 hours to request your next Pokemon :) Have a great day!`];
+                    return resolve(user);
+                });
+        } else {
+            user.response = [`I need a yes or a no.`];
+            user.keyboard = ['Yes', 'No'];
             return resolve(user);
         }
     });

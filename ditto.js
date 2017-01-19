@@ -36,8 +36,8 @@ bot.onTextMessage((message, next) => {
 
 exports.queueReminder = function queueReminder(user) {
     setTimeout(function() {
-        bot.send(`Hey - it's been 24 hours and you're free to request another Pokemon. Want to get started?`, user);
-    }, 86400);
+        bot.send(`It's been 24 hours and you're free to request another Pokemon. Message me to get started!`, user);
+    }, 25000);
 }
 
 function doesUserNeedKeyboard(user) {

@@ -145,6 +145,12 @@ function handleState(user) {
                 return resolve(handleStateTwelve(user));
             case 13:
                 return resolve(handleStateThirteen(user));
+            case 14:
+                return resolve(handleStateFourteen(user));
+            case 15:
+                return resolve(handleStateFifteen(user));
+            case 17:
+                return resolve(handleStateSeventeen(user));
         }
     });
 
@@ -220,7 +226,7 @@ function handleStateThree(user) {
                 if (result.match) {
                     updateRequest(user, 'pokemon', userPokemon, 5)
                         .then(updateUserState).then(function(result) {
-                            user.response = [`Got it, you want a ${userPokemon}. Would you like it to be shiny?`];
+                            user.response = [`Got it, you want ${userPokemon}. Would you like it to be shiny?`];
                             user.keyboard = ['Yes', 'No'];
                             return resolve(user);
                         });
@@ -228,7 +234,7 @@ function handleStateThree(user) {
                     user.sugg = result.sugg;
                     updateRequest(user, 'pokemon', user.sugg, 4)
                         .then(updateUserState).then(function(result) {
-                            user.response = [`Did you mean you want a ${user.sugg}?`];
+                            user.response = [`Did you mean you want ${user.sugg}?`];
                             user.keyboard = ['Yes', 'No'];
                             return resolve(user);
                         });
@@ -367,7 +373,7 @@ function handleStateNine(user) {
             user['nickname'] = user.message;
             updateRequest(user, 'nickname', user['nickname'], 10)
                 .then(updateUserState).then(function(result) {
-                    user.response = [`Got it, your Pokemon will be nicknamed ${user['nickname']}.`, `Alright, I'll use the GTS to send you your Pokemon.`, `You'll need to deposit a Pokemon and ask for this one. What Pokemon should I look for on the GTS?`];
+                    user.response = [`Got it, your Pokemon will be nicknamed ${user['nickname']}.`, `I'll use the GTS to send you your Pokemon.`, `You'll need to deposit a Pokemon and ask for this one. What Pokemon should I look for on the GTS?`];
                     return resolve(user);
                 });
         }
@@ -389,7 +395,7 @@ function handleStateTen(user) {
                     user.sugg = result.sugg;
                     updateRequest(user, 'trade', user.sugg, 11)
                         .then(updateUserState).then(function(result) {
-                            user.response = [`Did you mean you'll trade a ${user.sugg}?`];
+                            user.response = [`Did you mean you'll trade ${user.sugg}?`];
                             user.keyboard = ['Yes', 'No'];
                             return resolve(user);
                         });
@@ -439,6 +445,8 @@ function handleStateTwelve(user) {
                 .then(function(result) {
                     user.response = [`I hope you enjoyed using DittoBot! You'll get your Pokemon within 48 hours. Want a reminder when you can request another Pokemon?`];
                     user.keyboard = ['Yes', 'No'];
+                    user.state = 17;
+                    setStateTimeout(user);
                     return resolve(user);
                 });
         } else {
@@ -475,6 +483,57 @@ function handleStateThirteen(user) {
     });
 }
 
+function handleStateFourteen(user) {
+    return new Promise((resolve, reject) => {
+        user.state = 15;
+        updateUserState(user)
+            .then(function(result) {
+                user.response = [`Hi there, ${user.username}! It hasn't been quite 24 hours yet, so you can't request another Pokemon. Want a reminder when you can?`];
+                user.keyboard = ['Yes', 'No'];
+                return resolve(user);
+            });
+    });
+}
+
+function handleStateFifteen(user) {
+    return new Promise((resolve, reject) => {
+        if (user.message === "Yes") {
+            ditto.queueReminder(user.username);
+            user.state = 16;
+            updateUserState(user)
+                .then(function(result) {
+                    let user = result;
+                    user.response = [`Okay - I'll remind you when you can get another Pokemon :) Have a great day!`];
+                    return resolve(user);
+                });
+        } else if (user.message === 'No') {
+            user.state = 16;
+            updateUserState(user)
+                .then(function(result) {
+                    let user = result;
+                    user.response = [`Okay - just remember you have to wait 24 hours after requesting a Pokemon to request another one :) Have a great day!`];
+                    return resolve(user);
+                });
+        } else {
+            user.response = [`I need a yes or a no.`];
+            user.keyboard = ['Yes', 'No'];
+            return resolve(user);
+        }
+    })
+}
+
+function handleStateSeventeen(user) {
+    return new Promise((resolve, reject) => {
+        user.state = 3;
+        updateUserState(user)
+            .then(function(result) {
+                let user = result;
+                user.response = [`Great to see you again, ${user.username}! Which Pokemon would you like today?`];
+                return resolve(user);
+            });
+    });
+}
+
 function checkPokemonMatch(mon) {
     return new Promise((resolve, reject) => {
         checkPokemonAgainstList(mon).then(function(result) {
@@ -500,7 +559,10 @@ function checkPokemonAgainstList(mon) {
                         match: pokemonList[i]
                     }
                     return resolve(object);
-                } else if (natural.JaroWinklerCheck(mon, pokemonList[i]) >= .9) {
+                }
+            }
+            for (let i = 0; i < pokemonList.length; i++) {
+                if (natural.JaroWinklerCheck(mon, pokemonList[i]) >= .9) {
                     let object = {
                         bool: true,
                         sugg: pokemonList[i]
@@ -572,7 +634,6 @@ function timestampUser(user) {
             if (error) {
                 return reject(`Error connecting to database: ${error}`);
             }
-            let date = new Date();
             client.query(`UPDATE users SET last_request = 'now' WHERE username = ('${user.username}')`, function(error, result) {
                 done();
                 if (error) {
@@ -581,5 +642,24 @@ function timestampUser(user) {
                 return resolve(user);
             });
         });
+    });
+}
+
+function setStateTimeout(user) {
+    return new Promise((resolve, reject) => {
+            setTimeout(function() {
+                pool.connect(function(error, client, done) {
+                    if (error) {
+                        return reject(`Error connecting to database: $error`);
+                    }
+                    client.query(`UPDATE users SET (state) = (${user.state}) WHERE username = '${user.username}'`, function(error, result) {
+                        done();
+                        if (error) {
+                            return reject(`Error updating state in DB: ${error}`);
+                        }
+                        return resolve(user);
+                    });
+                });
+            }, 25000);
     });
 }

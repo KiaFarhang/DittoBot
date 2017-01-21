@@ -461,6 +461,7 @@ function handleStateThirteen(user) {
         if (user.message === "Yes") {
             ditto.queueReminder(user.username);
             user.state = 14;
+            getUserTimestamp(user).then(getTimeDifference);
             updateUserState(user)
                 .then(function(result) {
                     let user = result;
@@ -647,19 +648,44 @@ function timestampUser(user) {
 
 function setStateTimeout(user) {
     return new Promise((resolve, reject) => {
-            setTimeout(function() {
-                pool.connect(function(error, client, done) {
+        setTimeout(function() {
+            pool.connect(function(error, client, done) {
+                if (error) {
+                    return reject(`Error connecting to database: $error`);
+                }
+                client.query(`UPDATE users SET (state) = (${user.state}) WHERE username = '${user.username}'`, function(error, result) {
+                    done();
                     if (error) {
-                        return reject(`Error connecting to database: $error`);
+                        return reject(`Error updating state in DB: ${error}`);
                     }
-                    client.query(`UPDATE users SET (state) = (${user.state}) WHERE username = '${user.username}'`, function(error, result) {
-                        done();
-                        if (error) {
-                            return reject(`Error updating state in DB: ${error}`);
-                        }
-                        return resolve(user);
-                    });
+                    return resolve(user);
                 });
-            }, 25000);
+            });
+        }, 25000);
     });
+}
+
+function getUserTimestamp(user) {
+    return new Promise((resolve, reject) => {
+        pool.connect(function(error, client, done) {
+            if (error) {
+                return reject(`Error connecting to database: $error`);
+            }
+            client.query(`SELECT last_request FROM users WHERE username = '${user.username}'`, function(error, result) {
+                done();
+                if (error) {
+                    return reject(`Error fetching timestamp in DB: ${error}`);
+                }
+                user.timestamp = result.rows[0].last_request;
+                return resolve(user);
+            });
+        });
+    });
+}
+
+function getTimeDifference(user){
+    let timestamp = user.timestamp; 
+    let expirationDate = Date.parse(timestamp.setHours(24));
+    console.log(timestamp instanceof Date);
+    console.log(expirationDate);
 }

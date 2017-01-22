@@ -34,10 +34,10 @@ bot.onTextMessage((message, next) => {
     });
 });
 
-exports.queueReminder = function queueReminder(user) {
+exports.queueReminder = function queueReminder(user, time) {
     setTimeout(function() {
         bot.send(`It's been 24 hours and you're free to request another Pokemon. Message me to get started!`, user);
-    }, 25000);
+    }, time);
 }
 
 function doesUserNeedKeyboard(user) {

@@ -445,8 +445,6 @@ function handleStateTwelve(user) {
                 .then(function(result) {
                     user.response = [`I hope you enjoyed using DittoBot! You'll get your Pokemon within 48 hours. Want a reminder when you can request another Pokemon?`];
                     user.keyboard = ['Yes', 'No'];
-                    user.state = 17;
-                    setStateTimeout(user);
                     return resolve(user);
                 });
         } else {
@@ -458,34 +456,51 @@ function handleStateTwelve(user) {
 
 function handleStateThirteen(user) {
     return new Promise((resolve, reject) => {
-        if (user.message === "Yes") {
-            ditto.queueReminder(user.username);
-            user.state = 14;
-            getUserTimestamp(user).then(getTimeDifference);
-            updateUserState(user)
-                .then(function(result) {
-                    let user = result;
-                    user.response = [`Okay - I'll remind you 24 hours from now so you can get another Pokemon :) Have a great day!`];
+        getNextUserRequest(user).then(function(result) {
+            let user = result;
+            if (isItTimeYet(user.next_request)) {
+                user.state = 3;
+                updateUserState(user)
+                    .then(function(result) {
+                        let user = result;
+                        user.response = [`Actually, you can request another Pokemon right now. Which one would you like?`];
+                        return resolve(user);
+                    });
+            } else {
+                let user = result;
+                if (user.message === "Yes") {
+                    let timeRemaining = howMuchTimeLeft(user.next_request);
+                    ditto.queueReminder(user.username, timeRemaining);
+                    user.state = 14;
+                    updateUserState(user)
+                        .then(function(result) {
+                            let user = result;
+                            user.response = [`Okay - I'll remind you 24 hours from now so you can get another Pokemon :) Have a great day!`];
+                            return resolve(user);
+                        });
+                } else if (user.message === 'No') {
+                    user.state = 14;
+                    updateUserState(user)
+                        .then(function(result) {
+                            let user = result;
+                            user.response = [`Okay - just remember you have to wait 24 hours to request your next Pokemon :) Have a great day!`];
+                            return resolve(user);
+                        });
+                } else {
+                    user.response = [`I need a yes or a no.`];
+                    user.keyboard = ['Yes', 'No'];
                     return resolve(user);
-                });
-        } else if (user.message === 'No') {
-            user.state = 14;
-            updateUserState(user)
-                .then(function(result) {
-                    let user = result;
-                    user.response = [`Okay - just remember you have to wait 24 hours to request your next Pokemon :) Have a great day!`];
-                    return resolve(user);
-                });
-        } else {
-            user.response = [`I need a yes or a no.`];
-            user.keyboard = ['Yes', 'No'];
-            return resolve(user);
-        }
+                }
+            }
+        });
     });
 }
 
 function handleStateFourteen(user) {
     return new Promise((resolve, reject) => {
+        getNextUserRequest(user).then(function(result) {
+            console.log(isItTimeYet(result));
+        });
         user.state = 15;
         updateUserState(user)
             .then(function(result) {
@@ -635,7 +650,7 @@ function timestampUser(user) {
             if (error) {
                 return reject(`Error connecting to database: ${error}`);
             }
-            client.query(`UPDATE users SET last_request = 'now' WHERE username = ('${user.username}')`, function(error, result) {
+            client.query(`UPDATE users SET next_request = current_timestamp + interval '1 minute' WHERE username = ('${user.username}')`, function(error, result) {
                 done();
                 if (error) {
                     return reject(`Error adding timestamp in DB: ${error}`);
@@ -665,27 +680,30 @@ function setStateTimeout(user) {
     });
 }
 
-function getUserTimestamp(user) {
+function getNextUserRequest(user) {
     return new Promise((resolve, reject) => {
         pool.connect(function(error, client, done) {
             if (error) {
                 return reject(`Error connecting to database: $error`);
             }
-            client.query(`SELECT last_request FROM users WHERE username = '${user.username}'`, function(error, result) {
+            client.query(`SELECT next_request FROM users WHERE username = '${user.username}'`, function(error, result) {
                 done();
                 if (error) {
                     return reject(`Error fetching timestamp in DB: ${error}`);
                 }
-                user.timestamp = result.rows[0].last_request;
+                user.next_request = result.rows[0].next_request;
                 return resolve(user);
             });
         });
     });
 }
 
-function getTimeDifference(user){
-    let timestamp = user.timestamp; 
-    let expirationDate = Date.parse(timestamp.setHours(24));
-    console.log(timestamp instanceof Date);
-    console.log(expirationDate);
+function isItTimeYet(date) {
+    let now = new Date();
+    return now > date;
+}
+
+function howMuchTimeLeft(date){
+    let now = new Date();
+    return (date - now);
 }

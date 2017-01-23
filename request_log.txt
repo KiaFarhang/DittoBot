@@ -1,0 +1,20 @@
+trainer_name: May
+game: Sapphire
+pokemon: Kingler
+gender: F
+level: 60
+shiny: true
+nickname: Lungless
+trade: Gastly
+trade_level: 1
+
+trainer_name: Looperdoo
+game: Moon
+pokemon: Charmander
+gender: M
+level: 54
+shiny: true
+nickname: Dillweed
+trade: Ditto
+trade_level: 1
+

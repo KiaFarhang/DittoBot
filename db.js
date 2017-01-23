@@ -353,7 +353,7 @@ function handleStateEight(user) {
         } else if (user.message === 'No') {
             user.state = 10;
             updateUserState(user).then(function(result) {
-                user.response = [`Fair enough. Alright, I'll use the GTS to send you your Pokemon.`, `You'll need to deposit a Pokemon and ask for this one. What Pokemon should I look for on the GTS?`];
+                user.response = [`Fair enough. Alright, I'll use the Global Trade System to send you your Pokemon.`, `You'll need to deposit a Pokemon and ask for the one we just created. What Pokemon should I look for on the GTS?`];
                 return resolve(user);
             });
         } else {
@@ -373,7 +373,7 @@ function handleStateNine(user) {
             user['nickname'] = user.message;
             updateRequest(user, 'nickname', user['nickname'], 10)
                 .then(updateUserState).then(function(result) {
-                    user.response = [`Got it, your Pokemon will be nicknamed ${user['nickname']}.`, `I'll use the GTS to send you your Pokemon.`, `You'll need to deposit a Pokemon and ask for this one. What Pokemon should I look for on the GTS?`];
+                    user.response = [`Got it, your Pokemon will be nicknamed ${user['nickname']}.`, `I'll use the Global Trade System to send you your Pokemon.`, `You'll need to deposit a Pokemon and ask for the one we just created. What Pokemon should I look for on the GTS?`];
                     return resolve(user);
                 });
         }
@@ -443,7 +443,7 @@ function handleStateTwelve(user) {
                 .then(updateUserState)
                 .then(timestampUser)
                 .then(function(result) {
-                    user.response = [`I hope you enjoyed using DittoBot! You'll get your Pokemon within 48 hours. Want a reminder when you can request another Pokemon?`];
+                    user.response = [`I hope you enjoyed using PokéBuilder! You'll get your Pokemon within 48 hours. Want a reminder when you can request another Pokemon?`];
                     user.keyboard = ['Yes', 'No'];
                     return resolve(user);
                 });
@@ -499,54 +499,25 @@ function handleStateThirteen(user) {
 function handleStateFourteen(user) {
     return new Promise((resolve, reject) => {
         getNextUserRequest(user).then(function(result) {
-            console.log(isItTimeYet(result));
+            let user = result;
+            if (isItTimeYet(user.next_request)) {
+                user.state = 3;
+                updateUserState(user)
+                    .then(function(result) {
+                        let user = result;
+                        user.response = [`Hi, ${user.username}! Which Pokemon would you like today?`];
+                        return resolve(user);
+                    });
+            } else {
+                user.state = 14;
+                updateUserState(user)
+                    .then(function(result) {
+                        let remainingTime = convertTimeToReadable(howMuchTimeLeft(user.next_request));
+                        user.response = [`Hi there, ${user.username}! You still need to wait another ${remainingTime} to request another Pokemon.`];
+                        return resolve(user);
+                    });
+            }
         });
-        user.state = 15;
-        updateUserState(user)
-            .then(function(result) {
-                user.response = [`Hi there, ${user.username}! It hasn't been quite 24 hours yet, so you can't request another Pokemon. Want a reminder when you can?`];
-                user.keyboard = ['Yes', 'No'];
-                return resolve(user);
-            });
-    });
-}
-
-function handleStateFifteen(user) {
-    return new Promise((resolve, reject) => {
-        if (user.message === "Yes") {
-            ditto.queueReminder(user.username);
-            user.state = 16;
-            updateUserState(user)
-                .then(function(result) {
-                    let user = result;
-                    user.response = [`Okay - I'll remind you when you can get another Pokemon :) Have a great day!`];
-                    return resolve(user);
-                });
-        } else if (user.message === 'No') {
-            user.state = 16;
-            updateUserState(user)
-                .then(function(result) {
-                    let user = result;
-                    user.response = [`Okay - just remember you have to wait 24 hours after requesting a Pokemon to request another one :) Have a great day!`];
-                    return resolve(user);
-                });
-        } else {
-            user.response = [`I need a yes or a no.`];
-            user.keyboard = ['Yes', 'No'];
-            return resolve(user);
-        }
-    })
-}
-
-function handleStateSeventeen(user) {
-    return new Promise((resolve, reject) => {
-        user.state = 3;
-        updateUserState(user)
-            .then(function(result) {
-                let user = result;
-                user.response = [`Great to see you again, ${user.username}! Which Pokemon would you like today?`];
-                return resolve(user);
-            });
     });
 }
 
@@ -703,7 +674,46 @@ function isItTimeYet(date) {
     return now > date;
 }
 
-function howMuchTimeLeft(date){
+function howMuchTimeLeft(date) {
     let now = new Date();
     return (date - now);
+}
+
+function convertTimeToReadable(milli) {
+
+    let string = '';
+
+    if (milli >= 3600000) {
+        let hours = Math.floor(milli / 3600000);
+        milli -= (hours * 3600000);
+        string += hours + ' hours, ';
+    }
+    if (milli > 60000) {
+        let minutes = Math.floor(milli / 60000);
+        milli -= (minutes * 60000);
+        string += minutes + ' minutes, ';
+    }
+    if (milli > 1000) {
+        let seconds = Math.floor(milli / 1000);
+        string += seconds + ' seconds';
+    }
+
+    return string;
+}
+
+exports.getAllRequests = function getAllRequests() {
+    return new Promise((resolve, reject) => {
+        pool.connect(function(error, client, done) {
+            if (error) {
+                return reject(`Error connecting to database: $error`);
+            }
+            client.query(`SELECT users.trainer_name, users.game, requests.pokemon, requests.gender, requests.level, requests.shiny, requests.nickname, requests.trade, requests.trade_level FROM users, requests WHERE requests.username = users.username` , function(error, result) {
+                done();
+                if (error) {
+                    return reject(`Error fetching timestamp in DB: ${error}`);
+                }
+                return resolve(result.rows);
+            });
+        });
+    })
 }

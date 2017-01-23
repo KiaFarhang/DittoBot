@@ -3,8 +3,11 @@
 const express = require('express');
 const http = require('http');
 const Bot = require('@kikinteractive/kik');
+const fs = require('fs');
 
 const db = require('./db.js');
+
+var cronJob = require('cron').CronJob;
 
 require('dotenv').config();
 
@@ -34,6 +37,26 @@ bot.onTextMessage((message, next) => {
     });
 });
 
+bot.onPictureMessage((message, next) => {
+    message.reply('Nice picture! Unfortunately, I only handle text messages.');
+});
+
+bot.onVideoMessage((message, next) => {
+    message.reply('Cool video! Unfortunately, I only handle text messages.');
+});
+
+bot.onLinkMessage((message, next) => {
+    message.reply('Thanks! Unfortunately, I only handle text messages.');
+});
+
+bot.onStickerMessage((message, next) => {
+    message.reply('Neat! Unfortunately, I only handle text messages.');
+});
+
+bot.onScanDataMessage((message, next) => {
+    message.reply(`Hi :) I'm PokéBuilder, and I can help you build custom Pokemon once per day. Message me to get started!`);
+})
+
 exports.queueReminder = function queueReminder(user, time) {
     setTimeout(function() {
         bot.send(`It's been 24 hours and you're free to request another Pokemon. Message me to get started!`, user);
@@ -43,6 +66,23 @@ exports.queueReminder = function queueReminder(user, time) {
 function doesUserNeedKeyboard(user) {
     return user.keyboard != null;
 }
+
+var job = new cronJob('00 05 0-23/6 * * *', function() {
+    db.getAllRequests().then(function(result) {
+        let requests = result;
+        let string = '';
+        for (let i = 0; i < requests.length; i++) {
+            let req = requests[i];
+            for (var prop in req) {
+                string += `${prop}: ` + `${req[prop]}\n`;
+            }
+            string += '\n';
+        }
+        fs.writeFile('./request_log.txt', string, 'utf8', function(error) {});
+    });
+}, function() {}, true, 'America/Los_Angeles');
+
+
 
 
 let server = http.createServer(bot.incoming()).listen(8080);

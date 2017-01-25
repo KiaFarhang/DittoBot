@@ -38,19 +38,19 @@ bot.onTextMessage((message, next) => {
 });
 
 bot.onPictureMessage((message, next) => {
-    message.reply('Nice picture! Unfortunately, I only handle text messages.');
+    message.reply('Nice! Shoot me a text message when you want to keep building your Pokemon.');
 });
 
 bot.onVideoMessage((message, next) => {
-    message.reply('Cool video! Unfortunately, I only handle text messages.');
+    message.reply('Cool video! Let me know when you want to keep building your Pokemon.');
 });
 
 bot.onLinkMessage((message, next) => {
-    message.reply('Thanks! Unfortunately, I only handle text messages.');
+    message.reply(`Thanks! I'll keep that in mind. Ready to keep building your Pokemon?`);
 });
 
 bot.onStickerMessage((message, next) => {
-    message.reply('Neat! Unfortunately, I only handle text messages.');
+    message.reply('Neat! Want to keep building your Pokemon now?');
 });
 
 bot.onScanDataMessage((message, next) => {

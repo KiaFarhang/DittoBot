@@ -55,7 +55,11 @@ bot.onStickerMessage((message, next) => {
 
 bot.onScanDataMessage((message, next) => {
     message.reply(`Hi :) I'm PokéBuilder, and I can help you build custom Pokemon once per day. Message me to get started!`);
-})
+});
+
+bot.onStartChattingMessage((message, next) => {
+    message.reply(`Hi :) I'm PokéBuilder, and I can help you build custom Pokemon once per day. Message me to get started!`);
+});
 
 exports.queueReminder = function queueReminder(user, time) {
     setTimeout(function() {
